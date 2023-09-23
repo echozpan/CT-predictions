@@ -1,0 +1,870 @@
+---
+# ICILS 2018: International Computer and Information Literacy Study 2018
+# website: https://www.iea.nl/studies/iea/icils/2018
+---
+# Part 1: CT Predictions - Korea & Denmark Dataset
+
+```{r}
+setwd("/Users/echo/Documents/EDM")
+data <- read.csv("Data_Kor.csv", header = TRUE)
+dim(data)
+names(data)
+
+# Korean dataset: Data_Kor.csv
+# Denmark dataset: Data_Den.csv
+
+# Dependent Variable (DV): Computational thinking achievement (PV1CT)
+# Independent Variables (IV): 25 variables
+```
+
+```{r}
+# Define Predictors and Response
+x <- model.matrix(PV1CT ~ ., data)[, -1]
+y <- data$PV1CT
+
+# Train/Test Split: 80/20 Split
+set.seed(66)
+
+indexes <- sample(1:nrow(x), size = 0.8*nrow(x))
+train <- data[indexes,]
+test <- data[-indexes,]
+
+x_train <- model.matrix(PV1CT~., train)[,-1]
+x_test <- model.matrix(PV1CT~., test)[,-1]
+y_train <- train$PV1CT
+y_test <- test$PV1CT
+```
+
+# Part 1.1: Lasso 
+
+```{r}
+library(glmnet)
+library(Matrix)
+library(Metrics)
+
+grid <- 10^seq(10, -2, length = 100)
+
+# Lasso -cross-validation on the training set to find the best lambda
+set.seed(66)
+cv.hyper <- cv.glmnet(x_train, y_train, alpha = 1, grid = grid)
+plot(cv.hyper)
+```
+
+```{r}
+bestlam <- cv.hyper$lambda.min
+hyper.mse <- min(cv.hyper$cvm)
+print(paste('Best lambda:', bestlam))
+print(paste('Cross-validated MSE associated with the best lambda:', hyper.mse))
+```
+
+```{r}
+# Lasso model - best lambda - training
+lasso.mod <- glmnet(x_train, y_train, alpha = 1,
+    lambda = bestlam)
+lasso_train <- predict(lasso.mod, s = bestlam,
+    newx = x_train)
+mse_train <- mean((lasso_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(lasso_train, y_train)
+rss_train <- sum((lasso_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+
+```{r}
+# Lasso model - best lambda - testing
+lasso_test <- predict(lasso.mod, s = bestlam,
+    newx = x_test)
+mse_test <- mean((lasso_test - y_test)^2)
+rmse_test <- sqrt(mse_test)
+mae_test <- mae(lasso_test, y_test)
+rss_test <- sum((lasso_test - y_test) ^ 2)  ## residual sum of squares
+tss_test <- sum((y_test - mean(y_test)) ^ 2)  ## total sum of squares
+rsq_test <- 1 - rss_test/tss_test
+
+print(paste('MSE on testing set:', mse_test))
+print(paste('RMSE on testing set:', rmse_test))
+print(paste('MAE on testing set:', mae_test))
+print(paste('R-squared on testing set:', rsq_test))
+```
+
+```{r}
+# Lasso model - full(CV)
+set.seed(66)
+library(caret)
+train.control = trainControl(method = "cv", number = 10)
+cv.model = train(x=x,y=y,
+tuneGrid = data.frame(alpha=1,lambda = bestlam),
+trControl = train.control,
+method = "glmnet")
+cv.model
+```
+```{r}
+cv.rmse <- cv.model[["results"]][["RMSE"]]
+cv.mse <- (cv.rmse)^2
+cv.mse
+```
+
+#Part 1.2: Ridge
+
+```{r}
+grid <- 10^seq(10, -2, length = 100)
+
+# Ridge -cross-validation on the training set to find the best lambda
+set.seed(66)
+cv.hyper <- cv.glmnet(x_train, y_train, alpha = 0, grid = grid)
+plot(cv.hyper)
+```
+```{r}
+bestlam <- cv.hyper$lambda.min
+hyper.mse <- min(cv.hyper$cvm)
+print(paste('Best lambda:', bestlam))
+print(paste('Cross-validated MSE associated with the best lambda:', hyper.mse))
+```
+```{r}
+# Ridge model - best lambda - training
+lasso.mod <- glmnet(x_train, y_train, alpha = 0,
+    lambda = bestlam)
+lasso_train <- predict(lasso.mod, s = bestlam,
+    newx = x_train)
+mse_train <- mean((lasso_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(lasso_train, y_train)
+rss_train <- sum((lasso_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+```{r}
+# Ridge model - best lambda - testing
+lasso_test <- predict(lasso.mod, s = bestlam,
+    newx = x_test)
+mse_test <- mean((lasso_test - y_test)^2)
+rmse_test <- sqrt(mse_test)
+mae_test <- mae(lasso_test, y_test)
+rss_test <- sum((lasso_test - y_test) ^ 2)  ## residual sum of squares
+tss_test <- sum((y_test - mean(y_test)) ^ 2)  ## total sum of squares
+rsq_test <- 1 - rss_test/tss_test
+
+print(paste('MSE on testing set:', mse_test))
+print(paste('RMSE on testing set:', rmse_test))
+print(paste('MAE on testing set:', mae_test))
+print(paste('R-squared on testing set:', rsq_test))
+```
+```{r}
+# Ridge model - full(CV)
+set.seed(66)
+library(caret)
+train.control = trainControl(method = "cv", number = 10)
+cv.model = train(x=x,y=y,
+tuneGrid = data.frame(alpha=0,lambda = bestlam),
+trControl = train.control,
+method = "glmnet")
+cv.model
+```
+```{r}
+cv.rmse <- cv.model[["results"]][["RMSE"]]
+cv.mse <- (cv.rmse)^2
+cv.mse
+```
+
+# Part 1.3: PCR 
+
+```{r}
+library(pls)
+library(Metrics)
+# PCR  - cross-validation on the training set to find the best ncomp
+set.seed(66)
+pcr.fit <- pcr(PV1CT ~ ., data = train,
+               scale = TRUE, validation = "CV")
+
+summary(pcr.fit)
+```
+```{r}
+validationplot(pcr.fit, val.type = "MSEP")
+```
+```{r}
+bestcomp <- which.min( MSEP( pcr.fit )$val[1,1, ] ) - 1
+min.mse <- min( MSEP( pcr.fit )$val[1,1, ] ) - 1
+print(paste('Best ncomp:', bestcomp))
+print(paste('Cross-validated MSE associated with the best ncomp:', min.mse))
+```
+
+```{r}
+# PCR model - best ncomp - training
+pcr.mod <- pcr(PV1CT ~ ., data = train,
+               scale = TRUE)
+pcr_train <- predict(pcr.mod, x_train, ncomp = bestcomp)
+mse_train <- mean((pcr_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(pcr_train, y_train)
+rss_train <- sum((pcr_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+```{r}
+# PCR model - Best ncomp - testing
+pcr_pred <- predict(pcr.mod, x_test, ncomp = bestcomp)
+mse_test <- mean((pcr_pred - y_test)^2)
+rmse_test <- sqrt(mse_test)
+mae_test <- mae(pcr_pred, y_test)
+rss_test <- sum((pcr_pred - y_test) ^ 2)  ## residual sum of squares
+tss_test <- sum((y_test - mean(y_test)) ^ 2)  ## total sum of squares
+rsq_test <- 1 - rss_test/tss_test
+
+print(paste('MSE on testing set:', mse_test))
+print(paste('RMSE on testing set:', rmse_test))
+print(paste('MAE on testing set:', mae_test))
+print(paste('R-squared on testing set:', rsq_test))
+```
+
+```{r}
+# PCR model - full (CV) 
+set.seed(66)
+library(caret)
+cv.model <- train(x = x, y = y,
+                   method = 'pcr',
+                   trControl = trainControl(method = 'cv', number = 10),
+                   tuneGrid = expand.grid(ncomp = bestcomp))
+cv.model
+```
+
+```{r}
+cv.rmse <- cv.model[["results"]][["RMSE"]]
+cv.mse <- (cv.rmse)^2
+cv.mse
+```
+
+# Part 1.4: Random Forest
+
+```{r}
+library(randomForest)
+library(mlbench)
+library(caret)
+library(e1071)
+```
+
+```{r}
+set.seed(66)
+mtry <- sqrt(ncol(x))
+
+control <- trainControl(method='repeatedcv', 
+                        number=10, 
+                        search = 'random')
+
+rf_random <- train(PV1CT ~ .,
+                   data = train,
+                   method = 'rf',
+                   metric = 'RMSE',
+                   tuneLength  = 15, 
+                   trControl = control)
+print(rf_random)
+```
+```{r}
+get_best_result = function(caret_fit) {
+  best = which(rownames(caret_fit$results) == rownames(caret_fit$bestTune))
+  best_result = caret_fit$results[best, ]
+  rownames(best_result) = NULL
+  best_result
+}
+rfbest <- get_best_result(rf_random)
+rfbest
+```
+```{r}
+bestmtry <- rfbest$mtry
+bestrmse <- rfbest$RMSE
+bestmse <- (bestrmse)^2
+print(paste('Best mtry:', bestmtry))
+print(paste('Cross-validated MSE associated with the best mtry:', bestmse))
+```
+```{r}
+set.seed(66)
+rf.mod <- randomForest(PV1CT ~ ., data = train,
+     mtry = bestmtry, importance = TRUE)
+rf_train <- predict(rf.mod,
+    newdata = x_train)
+```
+```{r}
+library(Matrix)
+mse_train <- mean((rf_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(rf_train, y_train)
+rss_train <- sum((rf_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+```{r}
+# RF model - best mtry - testing
+rf_test <- predict(rf.mod, 
+    newdata = x_test)
+mse_test <- mean((rf_test - y_test)^2)
+rmse_test <- sqrt(mse_test)
+mae_test <- mae(rf_test, y_test)
+rss_test <- sum((rf_test - y_test) ^ 2)  ## residual sum of squares
+tss_test <- sum((y_test - mean(y_test)) ^ 2)  ## total sum of squares
+rsq_test <- 1 - rss_test/tss_test
+
+print(paste('MSE on testing set:', mse_test))
+print(paste('RMSE on testing set:', rmse_test))
+print(paste('MAE on testing set:', mae_test))
+print(paste('R-squared on testing set:', rsq_test))
+```
+
+```{r}
+# RF model - full (CV) 
+set.seed(66)
+library(caret)
+train.control <- trainControl(method = "cv", number = 10)
+
+grid <- expand.grid(.mtry = bestmtry) 
+cv.model <- train(PV1CT ~ .,
+                   data = data,
+                   method = 'rf',
+                   tuneGrid = grid,
+                   trControl = train.control)
+cv.model
+cv.rmse <- cv.model[["results"]][["RMSE"]]
+cv.mse <- (cv.rmse)^2
+cv.mse
+```
+
+# Part 1.5: KNN
+
+```{r}
+set.seed(66)
+tunegrid <- data.frame(k = seq(1,25,by = 1))
+
+control <- trainControl(method='repeatedcv', 
+                        number=10, 
+                        search = 'random')
+
+
+knn_random <- train(PV1CT ~ .,
+                   data = train,
+                   method = 'knn',
+                   metric = 'RMSE',
+                   tuneGrid = tunegrid,
+                   tuneLength  = 15,
+                   preProcess = c("center","scale"),
+                   trControl = control)
+print(knn_random)
+```
+```{r}
+get_best_result = function(caret_fit) {
+  best = which(rownames(caret_fit$results) == rownames(caret_fit$bestTune))
+  best_result = caret_fit$results[best, ]
+  rownames(best_result) = NULL
+  best_result
+}
+knnbest <- get_best_result(knn_random)
+knnbest
+```
+```{r}
+bestk <- knnbest$k
+bestrmse <- knnbest$RMSE
+bestmse <- (bestrmse)^2
+print(paste('Best k:', bestk))
+print(paste('Cross-validated MSE associated with the best k:', bestmse))
+```
+```{r}
+set.seed(66)
+knn.mod <- knnreg(PV1CT ~ ., data = train,
+     k = bestk, importance = TRUE)
+knn_train <- predict(knn.mod,
+    newdata = train)
+```
+```{r}
+library(Metrics)
+mse_train <- mean((knn_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(knn_train, y_train)
+rss_train <- sum((knn_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+```{r}
+# KNN model - best k - testing
+knn_test <- predict(knn.mod, 
+    newdata = test)
+mse_test <- mean((knn_test - y_test)^2)
+rmse_test <- sqrt(mse_test)
+mae_test <- mae(knn_test, y_test)
+rss_test <- sum((knn_test - y_test) ^ 2)  ## residual sum of squares
+tss_test <- sum((y_test - mean(y_test)) ^ 2)  ## total sum of squares
+rsq_test <- 1 - rss_test/tss_test
+
+print(paste('MSE on testing set:', mse_test))
+print(paste('RMSE on testing set:', rmse_test))
+print(paste('MAE on testing set:', mae_test))
+print(paste('R-squared on testing set:', rsq_test))
+```
+```{r}
+# KNN model - full (CV) 
+set.seed(66)
+library(caret)
+train.control <- trainControl(method = "cv", number = 10)
+
+grid <- expand.grid(.k = bestk) 
+cv.model <- train(PV1CT ~ .,
+                   data = data,
+                   method = 'knn',
+                   tuneGrid = grid,
+                   trControl = train.control)
+cv.model
+```
+```{r}
+cv.rmse <- cv.model[["results"]][["RMSE"]]
+cv.mse <- (cv.rmse)^2
+cv.mse
+```
+
+# Part 2: Generalizability of Algorithmic Prediction - ICILS 2018 Dataset
+
+# Datasets: Finland, France, Germany, Luxembourg, Portugal
+
+```{r}
+setwd("/Users/echo/Documents/EDM")
+den <- read.csv("Data_Den.csv", header = TRUE) # Denmark
+kor <- read.csv("Data_Kor.csv", header = TRUE) # Korea
+eur <- read.csv("Data_Eur.csv", header = TRUE) # 5 European countries
+
+# Dependent Variable (DV): Computational thinking ability (PV1CT)
+# Independent Variables (IV): 25 variables
+```
+
+```{r}
+library(glmnet)
+library(Matrix)
+library(Metrics)
+
+# Train/Test Set
+set.seed(66)
+
+train <- eur 
+test_den <- den
+test_kor <- kor
+```
+```{r}
+x_train <- model.matrix(PV1CT~., train)[,-1]
+x_test_den <- model.matrix(PV1CT~., test_den)[,-1]
+x_test_kor <- model.matrix(PV1CT~., test_kor)[,-1]
+y_train <- train$PV1CT
+y_test_den <- test_den$PV1CT
+y_test_kor <- test_kor$PV1CT
+```
+```{r}
+dim(train)
+```
+
+# Part 2.1: Lasso
+
+```{r}
+grid <- 10^seq(10, -2, length = 100)
+
+# lasso - cross-validation on the training set to find the best lambda
+set.seed(66)
+cv.hyper<- cv.glmnet(x_train, y_train, alpha = 1)
+plot(cv.hyper)
+```
+
+```{r}
+bestlam <- cv.hyper$lambda.min
+hyper.mse <- min(cv.hyper$cvm)
+print(paste('Best lambda:', bestlam))
+print(paste('Cross-validated MSE associated with the best lambda:', hyper.mse))
+```
+
+```{r}
+# lasso model - best lambda - training
+lasso.mod <- glmnet(x_train, y_train, alpha = 1,
+    lambda = bestlam)
+lasso_train <- predict(lasso.mod, s = bestlam,
+    newx = x_train)
+mse_train <- mean((lasso_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(lasso_train, y_train)
+rss_train <- sum((lasso_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+
+```{r}
+# lasso model - best lambda - testing - Korea
+lasso_test_kor <- predict(lasso.mod, s = bestlam,
+    newx = x_test_kor)
+mse_test_kor <- mean((lasso_test_kor - y_test_kor)^2)
+rmse_test_kor <- sqrt(mse_test_kor)
+mae_test_kor <- mae(lasso_test_kor, y_test_kor)
+rss_test_kor <- sum((lasso_test_kor - y_test_kor) ^ 2)  ## residual sum of squares
+tss_test_kor <- sum((y_test_kor - mean(y_test_kor)) ^ 2)  ## total sum of squares
+rsq_test_kor <- 1 - rss_test_kor/tss_test_kor
+
+print(paste('MSE on Korean data:', mse_test_kor))
+print(paste('RMSE on Korean data:', rmse_test_kor))
+print(paste('MAE on Korean data:', mae_test_kor))
+print(paste('R-squared on Korean data:', rsq_test_kor))
+```
+
+```{r}
+# lasso model - best lambda - testing - Denmark
+lasso_test_den <- predict(lasso.mod, s = bestlam,
+    newx = x_test_den)
+mse_test_den <- mean((lasso_test_den - y_test_den)^2)
+rmse_test_den <- sqrt(mse_test_den)
+mae_test_den <- mae(lasso_test_den, y_test_den)
+rss_test_den <- sum((lasso_test_den - y_test_den) ^ 2)  ## residual sum of squares
+tss_test_den <- sum((y_test_den - mean(y_test_den)) ^ 2)  ## total sum of squares
+rsq_test_den <- 1 - rss_test_den/tss_test_den
+
+print(paste('MSE on Danish data:', mse_test_den))
+print(paste('RMSE on Danish data:', rmse_test_den))
+print(paste('MAE on Danish data:', mae_test_den))
+print(paste('R-squared on Danish data:', rsq_test_den))
+```
+
+# Part 2.2: Ridge
+
+```{r}
+grid <- 10^seq(10, -2, length = 100)
+
+# ridge - cross-validation on the training set to find the best lambda
+set.seed(66)
+cv.hyper<- cv.glmnet(x_train, y_train, alpha = 0)
+plot(cv.hyper)
+```
+
+```{r}
+bestlam <- cv.hyper$lambda.min
+hyper.mse <- min(cv.hyper$cvm)
+print(paste('Best lambda:', bestlam))
+print(paste('Cross-validated MSE associated with the best lambda:', hyper.mse))
+```
+
+```{r}
+# ridge model - best lambda - training
+lasso.mod <- glmnet(x_train, y_train, alpha = 0,
+    lambda = bestlam)
+lasso_train <- predict(lasso.mod, s = bestlam,
+    newx = x_train)
+mse_train <- mean((lasso_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(lasso_train, y_train)
+rss_train <- sum((lasso_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+
+```{r}
+# ridge model - best lambda - testing - Korea
+lasso_test_kor <- predict(lasso.mod, s = bestlam,
+    newx = x_test_kor)
+mse_test_kor <- mean((lasso_test_kor - y_test_kor)^2)
+rmse_test_kor <- sqrt(mse_test_kor)
+mae_test_kor <- mae(lasso_test_kor, y_test_kor)
+rss_test_kor <- sum((lasso_test_kor - y_test_kor) ^ 2)  ## residual sum of squares
+tss_test_kor <- sum((y_test_kor - mean(y_test_kor)) ^ 2)  ## total sum of squares
+rsq_test_kor <- 1 - rss_test_kor/tss_test_kor
+
+print(paste('MSE on Korean data:', mse_test_kor))
+print(paste('RMSE on Korean data:', rmse_test_kor))
+print(paste('MAE on Korean data:', mae_test_kor))
+print(paste('R-squared on Korean data:', rsq_test_kor))
+```
+
+```{r}
+# ridge model - best lambda - testing - Denmark
+lasso_test_den <- predict(lasso.mod, s = bestlam,
+    newx = x_test_den)
+mse_test_den <- mean((lasso_test_den - y_test_den)^2)
+rmse_test_den <- sqrt(mse_test_den)
+mae_test_den <- mae(lasso_test_den, y_test_den)
+rss_test_den <- sum((lasso_test_den - y_test_den) ^ 2)  ## residual sum of squares
+tss_test_den <- sum((y_test_den - mean(y_test_den)) ^ 2)  ## total sum of squares
+rsq_test_den <- 1 - rss_test_den/tss_test_den
+
+print(paste('MSE on Danish data:', mse_test_den))
+print(paste('RMSE on Danish data:', rmse_test_den))
+print(paste('MAE on Danish data:', mae_test_den))
+print(paste('R-squared on Danish data:', rsq_test_den))
+```
+
+# Part 2.3: PCR
+
+```{r}
+# PCR  - cross-validation on the train set to find the best ncomp
+set.seed(66)
+pcr.fit <- pcr(PV1CT ~ ., data = train,
+               scale = TRUE, validation = "CV")
+
+summary(pcr.fit)
+```
+```{r}
+validationplot(pcr.fit, val.type = "MSEP")
+```
+
+```{r}
+bestcomp <- which.min( MSEP( pcr.fit )$val[1,1, ] ) - 1
+min.mse <- min( MSEP( pcr.fit )$val[1,1, ] ) - 1
+print(paste('Best ncomp:', bestcomp))
+print(paste('Cross-validated MSE associated with the best ncomp:', min.mse))
+```
+
+```{r}
+# PCR - Best ncomp - Training
+pcr.mod <- pcr(PV1CT ~ ., data = train,
+               scale = TRUE, validation = "none")
+pcr_train <- predict(pcr.mod, x_train, ncomp = bestcomp)
+mse_train <- mean((pcr_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(pcr_train, y_train)
+rss_train <- sum((pcr_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+
+```{r}
+# PCR - Best ncomp - Testing - Korea
+pcr_test_kor <- predict(pcr.mod, x_test_kor, ncomp = bestcomp)
+mse_test_kor <- mean((pcr_test_kor - y_test_kor)^2)
+rmse_test_kor <- sqrt(mse_test_kor)
+mae_test_kor <- mae(pcr_test_kor, y_test_kor)
+rss_test_kor <- sum((pcr_test_kor - y_test_kor) ^ 2)  ## residual sum of squares
+tss_test_kor <- sum((y_test_kor - mean(y_test_kor)) ^ 2)  ## total sum of squares
+rsq_test_kor <- 1 - rss_test_kor/tss_test_kor
+
+print(paste('MSE on Korean data:', mse_test_kor))
+print(paste('RMSE on Korean data:', rmse_test_kor))
+print(paste('MAE on Korean data:', mae_test_kor))
+print(paste('R-squared on Korean data:', rsq_test_kor))
+```
+
+```{r}
+# PCR - Best ncomp - Testing - Denmark
+pcr_test_den <- predict(pcr.mod, x_test_den, ncomp = bestcomp)
+mse_test_den <- mean((pcr_test_den - y_test_den)^2)
+rmse_test_den <- sqrt(mse_test_den)
+mae_test_den <- mae(pcr_test_den, y_test_den)
+rss_test_den <- sum((pcr_test_den - y_test_den) ^ 2)  ## residual sum of squares
+tss_test_den <- sum((y_test_den - mean(y_test_den)) ^ 2)  ## total sum of squares
+rsq_test_den <- 1 - rss_test_den/tss_test_den
+
+print(paste('MSE on Danish data:', mse_test_den))
+print(paste('RMSE on Danish data:', rmse_test_den))
+print(paste('MAE on Danish data:', mae_test_den))
+print(paste('R-squared on Danish data:', rsq_test_den))
+```
+
+# Part 2.4: Random Forest
+
+```{r}
+mtry <- sqrt(ncol(x))
+control <- trainControl(method='repeatedcv', 
+                        number=10, 
+                        search = 'random')
+
+set.seed(66)
+rf_random <- train(PV1CT ~ .,
+                   data = train,
+                   method = 'rf',
+                   metric = 'RMSE',
+                   tuneLength  = 15, 
+                   trControl = control)
+print(rf_random)
+```
+```{r}
+get_best_result = function(caret_fit) {
+  best = which(rownames(caret_fit$results) == rownames(caret_fit$bestTune))
+  best_result = caret_fit$results[best, ]
+  rownames(best_result) = NULL
+  best_result
+}
+rfbest <- get_best_result(rf_random)
+rfbest
+```
+```{r}
+bestmtry <- rfbest$mtry
+bestrmse <- rfbest$RMSE
+bestmse <- (bestrmse)^2
+print(paste('Best mtry:', bestmtry))
+print(paste('Cross-validated MSE associated with the best mtry:', bestmse))
+```
+```{r}
+set.seed(66)
+rf.mod <- randomForest(PV1CT ~ ., data = train,
+     mtry = bestmtry, importance = TRUE)
+```
+```{r}
+rf_train <- predict(rf.mod,
+    newdata = x_train)
+```
+```{r}
+mse_train <- mean((rf_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(rf_train, y_train)
+rss_train <- sum((rf_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+```{r}
+# Random Forest - testing - Korea
+rf_test_kor <- predict(rf.mod,
+    newdata = x_test_kor)
+mse_test_kor <- mean((rf_test_kor - y_test_kor)^2)
+rmse_test_kor <- sqrt(mse_test_kor)
+mae_test_kor <- mae(rf_test_kor, y_test_kor)
+rss_test_kor <- sum((rf_test_kor - y_test_kor) ^ 2)  ## residual sum of squares
+tss_test_kor <- sum((y_test_kor - mean(y_test_kor)) ^ 2)  ## total sum of squares
+rsq_test_kor <- 1 - rss_test_kor/tss_test_kor
+
+print(paste('MSE on Korean data:', mse_test_kor))
+print(paste('RMSE on Korean data:', rmse_test_kor))
+print(paste('MAE on Korean data:', mae_test_kor))
+print(paste('R-squared on Korean data:', rsq_test_kor))
+```
+
+```{r}
+# Random Forest - testing - Denmark
+rf_test_den <- predict(rf.mod, 
+    newdata = x_test_den)
+mse_test_den <- mean((rf_test_den - y_test_den)^2)
+rmse_test_den <- sqrt(mse_test_den)
+mae_test_den <- mae(rf_test_den, y_test_den)
+rss_test_den <- sum((rf_test_den - y_test_den) ^ 2)  ## residual sum of squares
+tss_test_den <- sum((y_test_den - mean(y_test_den)) ^ 2)  ## total sum of squares
+rsq_test_den <- 1 - rss_test_den/tss_test_den
+
+print(paste('MSE on Danish data:', mse_test_den))
+print(paste('RMSE on Danish data:', rmse_test_den))
+print(paste('MAE on Danish data:', mae_test_den))
+print(paste('R-squared on Danish data:', rsq_test_den))
+```
+
+# Part 2.5: KNN
+
+```{r}
+tunegrid <- data.frame(k = seq(1,25,by = 1))
+
+control <- trainControl(method='repeatedcv', 
+                        number=10, 
+                        search = 'random')
+
+set.seed(66)
+knn_random <- train(PV1CT ~ .,
+                   data = train,
+                   method = 'knn',
+                   metric = 'RMSE',
+                   tuneGrid = tunegrid,
+                   tuneLength  = 15,
+                   preProcess = c("center","scale"),
+                   trControl = control)
+print(knn_random)
+```
+```{r}
+get_best_result = function(caret_fit) {
+  best = which(rownames(caret_fit$results) == rownames(caret_fit$bestTune))
+  best_result = caret_fit$results[best, ]
+  rownames(best_result) = NULL
+  best_result
+}
+knnbest <- get_best_result(knn_random)
+knnbest
+```
+```{r}
+bestk <- knnbest$k
+bestrmse <- knnbest$RMSE
+bestmse <- (bestrmse)^2
+print(paste('Best k:', bestk))
+print(paste('Cross-validated MSE associated with the best k:', bestmse))
+```
+```{r}
+set.seed(66)
+knn.mod <- knnreg(PV1CT ~ ., data = train,
+     k = bestk, importance = TRUE)
+knn_train <- predict(knn.mod,
+    newdata = train)
+mse_train <- mean((knn_train - y_train)^2)
+rmse_train <- sqrt(mse_train)
+mae_train <- mae(knn_train, y_train)
+rss_train <- sum((knn_train - y_train) ^ 2)  ## residual sum of squares
+tss_train <- sum((y_train - mean(y_train)) ^ 2)  ## total sum of squares
+rsq_train <- 1 - rss_train/tss_train
+print(paste('MSE on training set:', mse_train))
+print(paste('RMSE on training set:', rmse_train))
+print(paste('MAE on training set:', mae_train))
+print(paste('R-squared on training set:', rsq_train))
+```
+```{r}
+# KNN model - best k - testing - Korea
+knn_test_kor <- predict(knn.mod,
+    newdata = test_kor)
+mse_test_kor <- mean((knn_test_kor - y_test_kor)^2)
+rmse_test_kor <- sqrt(mse_test_kor)
+mae_test_kor <- mae(knn_test_kor, y_test_kor)
+rss_test_kor <- sum((knn_test_kor - y_test_kor) ^ 2)  ## residual sum of squares
+tss_test_kor <- sum((y_test_kor - mean(y_test_kor)) ^ 2)  ## total sum of squares
+rsq_test_kor <- 1 - rss_test_kor/tss_test_kor
+
+print(paste('MSE on Korean data:', mse_test_kor))
+print(paste('RMSE on Korean data:', rmse_test_kor))
+print(paste('MAE on Korean data:', mae_test_kor))
+print(paste('R-squared on Korean data:', rsq_test_kor))
+```
+```{r}
+# KNN model - best k - testing - Denmark
+knn_test_den <- predict(knn.mod, 
+    newdata = test_den)
+mse_test_den <- mean((knn_test_den - y_test_den)^2)
+rmse_test_den <- sqrt(mse_test_den)
+mae_test_den <- mae(knn_test_den, y_test_den)
+rss_test_den <- sum((knn_test_den - y_test_den) ^ 2)  ## residual sum of squares
+tss_test_den <- sum((y_test_den - mean(y_test_den)) ^ 2)  ## total sum of squares
+rsq_test_den <- 1 - rss_test_den/tss_test_den
+
+print(paste('MSE on Danish data:', mse_test_den))
+print(paste('RMSE on Danish data:', rmse_test_den))
+print(paste('MAE on Danish data:', mae_test_den))
+print(paste('R-squared on Danish data:', rsq_test_den))
+```
+
+
