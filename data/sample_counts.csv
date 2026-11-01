@@ -1,0 +1,9 @@
+"country","country_code","raw_students","schools","all_CT_PVs_observed","student_side_complete","school_side_complete","complete_case_analytic_n","retained_percent"
+"Germany","DEU",3655,209,3655,2478,3063,2130,58.2763337893297
+"Denmark","DNK",2404,143,2404,2072,2265,1949,81.0732113144759
+"Finland","FIN",2546,144,2546,2271,2406,2159,84.7996857816182
+"France","FRA",2940,156,2940,2144,2619,1928,65.578231292517
+"Korea","KOR",2875,150,2875,2736,2858,2720,94.6086956521739
+"Luxembourg","LUX",5401,38,5401,4137,3744,2896,53.6197000555453
+"Portugal","PRT",3221,200,3221,3069,2692,2567,79.6957466625272
+"United States","USA",6790,263,6790,4624,5563,3788,55.7879234167894
